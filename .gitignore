@@ -1,0 +1,19 @@
+# Maven
+target/
+*.class
+*.jar
+
+# Eclipse
+.classpath
+.project
+.settings/
+
+# Spring Boot
+*.log
+application-local.properties
+
+# Windows
+Thumbs.db
+
+# Mac
+.DS_Store
