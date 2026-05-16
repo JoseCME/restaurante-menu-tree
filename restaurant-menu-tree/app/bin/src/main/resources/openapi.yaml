@@ -1,0 +1,220 @@
+openapi: 3.0.3
+info:
+  title: Restaurant Menu Tree API
+  description: API para gestionar el menú del restaurante como árbol jerárquico
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+    description: Servidor local
+
+paths:
+
+  /nodes/root:
+    post:
+      summary: Crear nodo raíz
+      description: Crea el nodo raíz del menú (ej. Menú Principal)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NodeRequest'
+      responses:
+        '201':
+          description: Nodo raíz creado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NodeResponse'
+        '400':
+          description: Ya existe una raíz
+
+  /nodes/{parentId}/children:
+    post:
+      summary: Agregar hijo a un nodo
+      description: Agrega un nodo hijo debajo de un nodo padre (ej. Bebidas bajo Menú)
+      parameters:
+        - name: parentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NodeRequest'
+      responses:
+        '201':
+          description: Nodo hijo creado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NodeResponse'
+        '404':
+          description: Nodo padre no encontrado
+
+  /tree:
+    get:
+      summary: Obtener árbol completo
+      description: Devuelve el menú completo en estructura jerárquica
+      responses:
+        '200':
+          description: Árbol completo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NodeResponse'
+
+  /tree/{nodeId}:
+    get:
+      summary: Obtener subárbol
+      description: Devuelve un subárbol desde un nodo específico
+      parameters:
+        - name: nodeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Subárbol desde el nodo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NodeResponse'
+        '404':
+          description: Nodo no encontrado
+
+  /nodes/{nodeId}/path:
+    get:
+      summary: Ruta desde raíz a un nodo
+      description: Devuelve la ruta completa desde la raíz hasta el nodo (ej. Menú→Bebidas→Café)
+      parameters:
+        - name: nodeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Ruta desde raíz
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NodeResponse'
+
+  /tree/traversal:
+    get:
+      summary: Recorrido DFS o BFS
+      description: Recorre el árbol en profundidad (DFS) o por niveles (BFS)
+      parameters:
+        - name: type
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [DFS, BFS]
+      responses:
+        '200':
+          description: Lista de nodos en orden de recorrido
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NodeResponse'
+
+  /tree/height:
+    get:
+      summary: Altura del árbol
+      description: Devuelve la altura total del menú (ej. Menú→Bebidas→Café→Espresso = 4)
+      responses:
+        '200':
+          description: Altura del árbol
+          content:
+            application/json:
+              schema:
+                type: integer
+
+  /nodes/{nodeId}/depth:
+    get:
+      summary: Profundidad de un nodo
+      description: Devuelve qué tan lejos está un nodo de la raíz
+      parameters:
+        - name: nodeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Profundidad del nodo
+          content:
+            application/json:
+              schema:
+                type: integer
+
+  /nodes/{nodeId}/ancestors:
+    get:
+      summary: Ancestros de un nodo
+      description: Devuelve todos los nodos por encima de un nodo específico
+      parameters:
+        - name: nodeId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista de ancestros
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NodeResponse'
+
+  /tree/validate:
+    get:
+      summary: Validar que no haya ciclos
+      description: Verifica que el árbol del menú no tenga ciclos
+      responses:
+        '200':
+          description: Resultado de la validación
+          content:
+            application/json:
+              schema:
+                type: boolean
+
+components:
+  schemas:
+    NodeRequest:
+      type: object
+      required:
+        - value
+      properties:
+        value:
+          type: string
+          example: Bebidas
+
+    NodeResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          example: uuid-1234
+        value:
+          type: string
+          example: Bebidas
+        parentId:
+          type: string
+          example: uuid-0001
+        children:
+          type: array
+          items:
+            $ref: '#/components/schemas/NodeResponse'
