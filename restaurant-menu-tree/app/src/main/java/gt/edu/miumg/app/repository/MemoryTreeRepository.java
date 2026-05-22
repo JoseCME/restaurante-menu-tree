@@ -1,6 +1,8 @@
 package gt.edu.miumg.app.repository;
 
 import gt.edu.miumg.engine.dto.NodeDTO;
+
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 import java.util.HashMap;
 import java.util.Map;
@@ -8,6 +10,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
+@ConditionalOnProperty(name = "app.storage", havingValue = "memory")
 public class MemoryTreeRepository implements TreeRepository {
 
     private final Map<String, NodeDTO> store = new HashMap<>();
