@@ -1,4 +1,4 @@
-package gt.edu.miumg.app.repository;
+package gt.edu.miumg.app.persistence;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.mongodb.repository.MongoRepository;

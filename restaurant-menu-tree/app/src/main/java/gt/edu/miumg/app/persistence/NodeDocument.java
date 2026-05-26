@@ -1,4 +1,4 @@
-package gt.edu.miumg.app.repository;
+package gt.edu.miumg.app.persistence;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;

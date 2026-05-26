@@ -1,4 +1,4 @@
-package gt.edu.miumg.app.repository;
+package gt.edu.miumg.app.persistence;
 
 import jakarta.persistence.*;
 
