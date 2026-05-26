@@ -1,4 +1,4 @@
-package gt.edu.miumg.app;
+package gt.edu.miumg.app.config;
 
 import gt.edu.miumg.engine.strategy.CollectionsTreeStrategy;
 import gt.edu.miumg.engine.strategy.CustomTreeStrategy;
@@ -6,9 +6,9 @@ import gt.edu.miumg.engine.strategy.TreeAlgorithmStrategy;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import gt.edu.miumg.app.repository.MongoNodeRepository;
-import gt.edu.miumg.app.repository.MongoTreeRepository;
-import gt.edu.miumg.app.repository.TreeRepository;
+import gt.edu.miumg.app.persistence.MongoNodeRepository;
+import gt.edu.miumg.app.persistence.MongoTreeRepository;
+import gt.edu.miumg.app.persistence.TreeRepository;
 
 @Configuration
 public class TreeConfig {

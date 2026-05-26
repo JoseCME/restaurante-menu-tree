@@ -1,4 +1,4 @@
-package gt.edu.miumg.app.repository;
+package gt.edu.miumg.app.persistence;
 
 import gt.edu.miumg.engine.dto.NodeDTO;
 

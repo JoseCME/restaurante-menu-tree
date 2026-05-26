@@ -1,6 +1,6 @@
 package gt.edu.miumg.app.service;
 
-import gt.edu.miumg.app.repository.TreeRepository;
+import gt.edu.miumg.app.persistence.TreeRepository;
 import gt.edu.miumg.engine.dto.NodeDTO;
 import gt.edu.miumg.engine.strategy.TreeAlgorithmStrategy;
 import org.springframework.stereotype.Service;
