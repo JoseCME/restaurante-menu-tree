@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MenuTree — Gestión de Menú</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --rojo:     #E63946;
+  --naranja:  #F4A261;
+  --amarillo: #FFD166;
+  --verde:    #2EC4B6;
+  --azul:     #3A86FF;
+  --morado:   #8338EC;
+  --rosa:     #FF006E;
+  --bg:       #1A1A2E;
+  --bg2:      #16213E;
+  --bg3:      #0F3460;
+  --card:     #1E2A4A;
+  --border:   #2A3F6F;
+  --text:     #F0EAD6;
+  --muted:    #8899BB;
+  --radius:   14px;
+  --fredoka:  'Fredoka One', cursive;
+  --nunito:   'Nunito', sans-serif;
+  --mono:     'Space Mono', monospace;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--nunito);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background:
+    radial-gradient(ellipse 600px 400px at 10% 20%, #E6394618 0%, transparent 70%),
+    radial-gradient(ellipse 500px 500px at 90% 80%, #3A86FF18 0%, transparent 70%),
+    radial-gradient(ellipse 400px 300px at 50% 50%, #8338EC10 0%, transparent 70%);
+  pointer-events: none;
+}
+header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(26,26,46,0.92);
+  backdrop-filter: blur(16px);
+  border-bottom: 2px solid var(--border);
+  padding: 0 2rem;
+  height: 68px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.brand { display: flex; align-items: center; gap: 14px; }
+.brand-logo {
+  width: 42px; height: 42px;
+  background: linear-gradient(135deg, var(--naranja), var(--rojo));
+  border-radius: 12px;
+  display: grid; place-items: center;
+  font-size: 22px;
+  box-shadow: 0 4px 16px #E6394640;
+  animation: logoPulse 3s ease-in-out infinite;
+}
+@keyframes logoPulse {
+  0%,100% { box-shadow: 0 4px 16px #E6394640; }
+  50%      { box-shadow: 0 4px 28px #F4A26160; }
+}
+.brand-text { line-height: 1.1; }
+.brand-name {
+  font-family: var(--fredoka);
+  font-size: 1.5rem;
+  background: linear-gradient(90deg, var(--naranja), var(--amarillo));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.brand-sub { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); letter-spacing: 0.1em; }
+.header-badges { display: flex; align-items: center; gap: 10px; }
+.badge {
+  font-family: var(--mono); font-size: 0.65rem;
+  padding: 5px 12px; border-radius: 20px; border: 1.5px solid;
+  letter-spacing: 0.06em; font-weight: 700;
+}
+.badge-strategy { color: var(--amarillo); border-color: var(--amarillo); background: #FFD16618; }
+.badge-storage  { color: var(--verde);    border-color: var(--verde);    background: #2EC4B618; }
+.status-wrap { display: flex; align-items: center; gap: 6px; }
+#status-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); transition: all 0.4s; }
+#status-dot.ok    { background: var(--verde); box-shadow: 0 0 8px var(--verde); }
+#status-dot.error { background: var(--rojo);  box-shadow: 0 0 8px var(--rojo); }
+.status-label { font-family: var(--mono); font-size: 0.6rem; color: var(--muted); }
+.app-layout {
+  position: relative; z-index: 1;
+  display: grid; grid-template-columns: 360px 1fr;
+  min-height: calc(100vh - 68px);
+}
+.sidebar {
+  background: rgba(22,33,62,0.7);
+  border-right: 2px solid var(--border);
+  overflow-y: auto;
+  padding: 1.5rem 1.2rem;
+  display: flex; flex-direction: column; gap: 1rem;
+}
+.panel { background: var(--card); border: 1.5px solid var(--border); border-radius: var(--radius); overflow: hidden; transition: border-color 0.2s; }
+.panel:hover { border-color: #3A4F80; }
+.panel-header { padding: 10px 16px; display: flex; align-items: center; gap: 10px; border-bottom: 1.5px solid var(--border); }
+.panel-num { font-family: var(--fredoka); font-size: 0.85rem; width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; flex-shrink: 0; }
+.panel-title { font-family: var(--nunito); font-weight: 800; font-size: 0.78rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.p1 .panel-num { background: linear-gradient(135deg,var(--rojo),#ff6b35); color:#fff; }
+.p1 .panel-title { color: var(--naranja); }
+.p2 .panel-num { background: linear-gradient(135deg,var(--azul),var(--morado)); color:#fff; }
+.p2 .panel-title { color: var(--azul); }
+.p3 .panel-num { background: linear-gradient(135deg,var(--verde),#06d6a0); color:#fff; }
+.p3 .panel-title { color: var(--verde); }
+.p4 .panel-num { background: linear-gradient(135deg,var(--morado),var(--rosa)); color:#fff; }
+.p4 .panel-title { color: var(--morado); }
+.panel-body { padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+label { font-size: 0.72rem; font-weight: 700; color: var(--muted); display: block; margin-bottom: 4px; letter-spacing: 0.05em; text-transform: uppercase; }
+input[type="text"] {
+  width: 100%; background: var(--bg2); border: 1.5px solid var(--border);
+  color: var(--text); padding: 9px 12px; border-radius: 10px;
+  font-family: var(--nunito); font-size: 0.85rem; font-weight: 600; outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+input[type="text"]:focus { border-color: var(--azul); box-shadow: 0 0 0 3px #3A86FF20; }
+.btn {
+  width: 100%; padding: 10px 14px; border: none; border-radius: 10px;
+  font-family: var(--nunito); font-size: 0.82rem; font-weight: 800;
+  cursor: pointer; transition: all 0.15s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
+.btn-rojo    { background: linear-gradient(135deg,var(--rojo),#ff6b35); color:#fff; box-shadow: 0 4px 14px #E6394430; }
+.btn-azul    { background: linear-gradient(135deg,var(--azul),var(--morado)); color:#fff; box-shadow: 0 4px 14px #3A86FF30; }
+.btn-verde   { background: linear-gradient(135deg,var(--verde),#06d6a0); color:#fff; box-shadow: 0 4px 14px #2EC4B630; }
+.btn-amarillo{ background: linear-gradient(135deg,var(--amarillo),var(--naranja)); color:#1A1A2E; box-shadow: 0 4px 14px #FFD16630; }
+.btn-morado  { background: linear-gradient(135deg,var(--morado),var(--rosa)); color:#fff; box-shadow: 0 4px 14px #8338EC30; }
+.btn-outline { background: transparent; color: var(--muted); border: 1.5px solid var(--border); }
+.btn-outline:hover { color: var(--text); border-color: var(--muted); background: #ffffff08; }
+.btn-rojo:hover,.btn-azul:hover,.btn-verde:hover,.btn-amarillo:hover,.btn-morado:hover { transform: translateY(-2px); filter: brightness(1.1); }
+.node-list { max-height: 130px; overflow-y: auto; border: 1.5px solid var(--border); border-radius: 10px; background: var(--bg2); }
+.node-item { padding: 8px 12px; display: flex; align-items: center; gap: 8px; cursor: pointer; border-bottom: 1px solid var(--border); transition: background 0.1s; font-size: 0.8rem; font-weight: 600; }
+.node-item:last-child { border-bottom: none; }
+.node-item:hover { background: #ffffff08; }
+.node-item.active { background: #3A86FF18; color: var(--azul); }
+.node-item .nid { margin-left: auto; font-family: var(--mono); font-size: 0.6rem; color: var(--muted); }
+.empty-list { padding: 12px; text-align: center; font-size: 0.75rem; color: var(--muted); font-family: var(--mono); }
+.main-area { display: grid; grid-template-rows: 1fr 220px; overflow: hidden; }
+#tree-area { overflow: auto; padding: 2rem; position: relative; }
+.empty-tree { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; pointer-events: none; }
+.empty-icon { font-size: 5rem; animation: float 3s ease-in-out infinite; }
+@keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+.empty-text { font-family: var(--fredoka); font-size: 1.4rem; color: var(--muted); }
+.empty-sub { font-family: var(--mono); font-size: 0.72rem; color: #3A4F80; }
+.tree-wrap { display: inline-block; min-width: 100%; }
+.tnode-block { display: flex; flex-direction: column; }
+.tnode-row { display: flex; align-items: flex-start; }
+.tnode-row { animation: nodeIn 0.35s cubic-bezier(.34,1.56,.64,1) both; }
+@keyframes nodeIn { from { opacity:0; transform: scale(0.7) translateY(-8px); } to { opacity:1; transform: scale(1) translateY(0); } }
+.tnode {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 16px 8px 12px; border-radius: 12px; border: 2px solid;
+  margin: 5px 0; cursor: pointer; transition: all 0.18s;
+  white-space: nowrap; position: relative; font-weight: 700; font-size: 0.88rem;
+}
+.tnode:hover { transform: translateX(4px) scale(1.03); }
+.tnode.selected { box-shadow: 0 0 0 3px currentColor; }
+.tnode.highlighted { animation: nodeIn 0.3s cubic-bezier(.34,1.56,.64,1); filter: brightness(1.25); }
+.depth-0 { background:#E6394420; border-color:#E63946; color:#ff8a8a; }
+.depth-1 { background:#F4A26120; border-color:#F4A261; color:#F4A261; }
+.depth-2 { background:#FFD16620; border-color:#FFD166; color:#FFD166; }
+.depth-3 { background:#2EC4B620; border-color:#2EC4B6; color:#2EC4B6; }
+.depth-4 { background:#3A86FF20; border-color:#3A86FF; color:#a0c4ff; }
+.depth-5 { background:#8338EC20; border-color:#8338EC; color:#c09eff; }
+.depth-x { background:#FF006E20; border-color:#FF006E; color:#ff80b4; }
+.tnode-icon { font-size: 1rem; }
+.tnode-depth { font-family: var(--mono); font-size: 0.58rem; opacity: 0.6; margin-left: 4px; }
+.tnode-id   { font-family: var(--mono); font-size: 0.58rem; opacity: 0.5; }
+.tnode-children { padding-left: 32px; border-left: 2px dashed var(--border); margin-left: 20px; }
+#result-area {
+  background: rgba(15,52,96,0.6); border-top: 2px solid var(--border);
+  backdrop-filter: blur(8px); overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.result-topbar { padding: 10px 1.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.result-label { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; }
+#result-op { font-family: var(--mono); font-size: 0.72rem; font-weight: 700; color: var(--amarillo); }
+.result-body { padding: 12px 1.5rem; overflow-y: auto; flex: 1; }
+.rtag { display: inline-flex; align-items: center; gap: 6px; background: var(--card); border: 1.5px solid var(--border); border-radius: 8px; padding: 4px 10px; font-family: var(--mono); font-size: 0.72rem; margin: 3px; font-weight: 700; }
+.rrow { display: flex; align-items: center; font-family: var(--mono); font-size: 0.78rem; padding: 4px 0; gap: 10px; }
+.rrow .rkey { color: var(--muted); }
+.rrow .rval { color: var(--text); font-weight: 700; }
+.rpath { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.rsep { color: var(--muted); font-size: 0.9rem; }
+.rnum { font-family: var(--fredoka); font-size: 2rem; }
+.spin { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--amarillo); border-radius: 50%; animation: spinning 0.6s linear infinite; }
+@keyframes spinning { to { transform: rotate(360deg); } }
+#toast { position: fixed; bottom: 28px; right: 28px; z-index: 999; background: var(--card); border: 2px solid var(--border); border-radius: 14px; padding: 12px 18px; font-family: var(--nunito); font-size: 0.82rem; font-weight: 700; display: flex; align-items: center; gap: 10px; transform: translateY(80px); opacity: 0; transition: all 0.3s cubic-bezier(.34,1.56,.64,1); max-width: 300px; }
+#toast.show { transform: translateY(0); opacity: 1; }
+#toast.success { border-color: var(--verde); }
+#toast.error   { border-color: var(--rojo); }
+#toast.info    { border-color: var(--azul); }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #3A4F80; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="brand-logo">🌮</div>
+    <div class="brand-text">
+      <div class="brand-name">MenuTree</div>
+      <div class="brand-sub">Restaurant Hierarchy Manager</div>
+    </div>
+  </div>
+  <div class="header-badges">
+    <span class="badge badge-strategy" id="badge-strategy">strategy: —</span>
+    <span class="badge badge-storage"  id="badge-storage">storage: —</span>
+    <div class="status-wrap">
+      <div id="status-dot"></div>
+      <span class="status-label" id="status-label">offline</span>
+    </div>
+  </div>
+</header>
+<div class="app-layout">
+  <aside class="sidebar">
+    <div class="panel p1">
+      <div class="panel-header"><div class="panel-num">01</div><div class="panel-title">Crear Raíz</div></div>
+      <div class="panel-body">
+        <div><label>Nombre del nodo raíz</label><input type="text" id="root-value" placeholder="ej. Menú Principal"/></div>
+        <button class="btn btn-rojo" onclick="crearRaiz()">🌱 Crear raíz</button>
+      </div>
+    </div>
+    <div class="panel p2">
+      <div class="panel-header"><div class="panel-num">02</div><div class="panel-title">Agregar Hijo</div></div>
+      <div class="panel-body">
+        <div><label>Nombre del hijo</label><input type="text" id="child-value" placeholder="ej. Bebidas"/></div>
+        <div><label>Selecciona el padre</label><div class="node-list" id="parent-list"><div class="empty-list">Sin nodos aún</div></div></div>
+        <button class="btn btn-azul" onclick="agregarHijo()">➕ Agregar hijo</button>
+      </div>
+    </div>
+    <div class="panel p3">
+      <div class="panel-header"><div class="panel-num">03</div><div class="panel-title">Consultar Nodo</div></div>
+      <div class="panel-body">
+        <div><label>Nodo seleccionado</label><div class="node-list" id="query-list"><div class="empty-list">Sin nodos aún</div></div></div>
+        <button class="btn btn-verde"   onclick="verRuta()">📍 Ruta desde raíz</button>
+        <button class="btn btn-outline" onclick="verProfundidad()">📏 Profundidad</button>
+        <button class="btn btn-outline" onclick="verAncestros()">🧬 Ancestros</button>
+        <button class="btn btn-outline" onclick="verSubarbol()">🌿 Subárbol</button>
+      </div>
+    </div>
+    <div class="panel p4">
+      <div class="panel-header"><div class="panel-num">04</div><div class="panel-title">Operaciones Globales</div></div>
+      <div class="panel-body">
+        <button class="btn btn-amarillo" onclick="recorridoDFS()">⬇ Recorrido DFS</button>
+        <button class="btn btn-amarillo" onclick="recorridoBFS()">➡ Recorrido BFS</button>
+        <button class="btn btn-morado"   onclick="verAltura()">📐 Altura del árbol</button>
+        <button class="btn btn-morado"   onclick="validarCiclos()">✅ Validar ciclos</button>
+        <button class="btn btn-outline"  onclick="cargarArbol()">🔄 Recargar árbol</button>
+      </div>
+    </div>
+  </aside>
+  <div class="main-area">
+    <div id="tree-area">
+      <div class="empty-tree" id="empty-tree">
+        <div class="empty-icon">🌮</div>
+        <div class="empty-text">El árbol está vacío</div>
+        <div class="empty-sub">Crea la raíz para comenzar</div>
+      </div>
+      <div class="tree-wrap" id="tree-container"></div>
+    </div>
+    <div id="result-area">
+      <div class="result-topbar">
+        <span class="result-label">Resultado</span>
+        <span id="result-op">— ninguna operación ejecutada</span>
+      </div>
+      <div class="result-body" id="result-body">
+        <span style="color:var(--muted);font-family:var(--mono);font-size:0.75rem">Ejecuta una operación para ver el resultado aquí.</span>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<script>
+const API = 'http://localhost:8080';
+let allNodes = {}, selectedId = null, parentSel = null;
+
+function toast(msg, type='info') {
+  const el = document.getElementById('toast');
+  el.className = `show ${type}`;
+  el.innerHTML = `<span>${type==='success'?'✓':type==='error'?'✗':'ℹ'}</span> ${msg}`;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 3000);
+}
+function setResult(op, html) {
+  document.getElementById('result-op').textContent = op;
+  document.getElementById('result-body').innerHTML = html;
+}
+function loading(op) { setResult(op, '<span class="spin"></span> cargando...'); }
+async function api(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(API + path, opts);
+  if (!res.ok) { const txt = await res.text(); throw new Error(txt || `HTTP ${res.status}`); }
+  const ct = res.headers.get('content-type') || '';
+  return ct.includes('application/json') ? res.json() : res.text();
+}
+async function pingBackend() {
+  const dot = document.getElementById('status-dot');
+  const lbl = document.getElementById('status-label');
+  try {
+    await fetch(API + '/tree', { signal: AbortSignal.timeout(2500) });
+    dot.className = 'ok'; lbl.textContent = 'online'; lbl.style.color = 'var(--verde)';
+  } catch {
+    dot.className = 'error'; lbl.textContent = 'offline'; lbl.style.color = 'var(--rojo)';
+  }
+}
+const DEPTH_CLASS = ['depth-0','depth-1','depth-2','depth-3','depth-4','depth-5','depth-x'];
+function dClass(d) { return DEPTH_CLASS[Math.min(d, DEPTH_CLASS.length-1)]; }
+function nIcon(val, d) {
+  const v = (val||'').toLowerCase();
+  if (d===0) return '🏠';
+  if (v.includes('bebid')) return '🥤';
+  if (v.includes('caliente')||v.includes('café')||v.includes('cafe')||v.includes('espresso')) return '☕';
+  if (v.includes('fría')||v.includes('frio')||v.includes('helado')||v.includes('jugo')) return '🧊';
+  if (v.includes('comid')||v.includes('plato')) return '🍽️';
+  if (v.includes('entrada')) return '🥗';
+  if (v.includes('postre')||v.includes('dulce')) return '🍮';
+  if (v.includes('vino')||v.includes('cerveza')||v.includes('alcohol')) return '🍷';
+  if (d===1) return '📂'; return '🍴';
+}
+function renderArbol(data) {
+  const c = document.getElementById('tree-container');
+  const e = document.getElementById('empty-tree');
+  if (!data||!data.id) { c.innerHTML=''; e.style.display='flex'; return; }
+  e.style.display='none'; c.innerHTML=''; c.appendChild(buildNode(data,0));
+}
+function buildNode(node, depth) {
+  const block = document.createElement('div'); block.className='tnode-block';
+  const row = document.createElement('div'); row.className='tnode-row';
+  const el = document.createElement('div');
+  el.className=`tnode ${dClass(depth)}`; el.dataset.id=node.id;
+  if (node.id===selectedId) el.classList.add('selected');
+  el.style.animationDelay=`${depth*0.06}s`;
+  el.innerHTML=`<span class="tnode-icon">${nIcon(node.value,depth)}</span><span>${node.value}</span><span class="tnode-depth">d:${depth}</span><span class="tnode-id">#${node.id.substring(0,6)}</span>`;
+  el.addEventListener('click',()=>selectNode(node.id,node.value));
+  row.appendChild(el); block.appendChild(row);
+  if (node.children&&node.children.length>0) {
+    const cd=document.createElement('div'); cd.className='tnode-children';
+    node.children.forEach(c=>cd.appendChild(buildNode(c,depth+1))); block.appendChild(cd);
+  }
+  return block;
+}
+function selectNode(id, value) {
+  selectedId=id; parentSel=id;
+  document.querySelectorAll('.tnode').forEach(n=>n.classList.toggle('selected',n.dataset.id===id));
+  refreshLists(); toast(`Seleccionado: ${value}`,'info');
+}
+function refreshLists() {
+  buildList('parent-list', parentSel); buildList('query-list', selectedId);
+}
+function buildList(listId, activeId) {
+  const el=document.getElementById(listId);
+  const nodes=Object.values(allNodes);
+  if (!nodes.length) { el.innerHTML='<div class="empty-list">Sin nodos aún</div>'; return; }
+  el.innerHTML=nodes.map(n=>`<div class="node-item ${n.id===activeId?'active':''}" onclick="listSel('${n.id}','${listId}')"><span>${nIcon(n.value,0)}</span><span>${n.value}</span><span class="nid">#${n.id.substring(0,6)}</span></div>`).join('');
+}
+function listSel(id, listId) {
+  if (listId==='parent-list') parentSel=id; else { selectedId=id; document.querySelectorAll('.tnode').forEach(n=>n.classList.toggle('selected',n.dataset.id===id)); }
+  refreshLists();
+}
+async function cargarArbol() {
+  try {
+    const data=await api('GET','/tree');
+    allNodes={}; flatten(data,allNodes); renderArbol(data); refreshLists();
+  } catch(e) { renderArbol(null); refreshLists(); }
+}
+function flatten(node,map) { if(!node||!node.id)return; map[node.id]=node; (node.children||[]).forEach(c=>flatten(c,map)); }
+async function crearRaiz() {
+  const value=document.getElementById('root-value').value.trim();
+  if (!value){toast('Escribe un nombre para la raíz','error');return;}
+  try {
+    loading('POST /nodes/root');
+    const node=await api('POST','/nodes/root',{value});
+    toast('¡Raíz creada! '+node.value,'success');
+    setResult('POST /nodes/root',`<div class="rrow"><span class="rkey">ID</span><span class="rval">${node.id}</span></div><div class="rrow"><span class="rkey">Valor</span><span class="rval">${node.value}</span></div><div class="rrow"><span class="rkey">ParentId</span><span class="rval">${node.parentId??'null (raíz)'}</span></div>`);
+    document.getElementById('root-value').value=''; await cargarArbol();
+  } catch(e){toast('Error: '+e.message,'error');}
+}
+async function agregarHijo() {
+  const value=document.getElementById('child-value').value.trim();
+  if (!value){toast('Escribe un nombre','error');return;}
+  if (!parentSel){toast('Selecciona un padre','error');return;}
+  try {
+    loading('POST /nodes/{parentId}/children');
+    const node=await api('POST',`/nodes/${parentSel}/children`,{value});
+    toast('¡Hijo agregado! '+node.value,'success');
+    setResult('POST /nodes/{parentId}/children',`<div class="rrow"><span class="rkey">ID</span><span class="rval">${node.id}</span></div><div class="rrow"><span class="rkey">Valor</span><span class="rval">${node.value}</span></div><div class="rrow"><span class="rkey">ParentId</span><span class="rval">${node.parentId}</span></div>`);
+    document.getElementById('child-value').value=''; await cargarArbol();
+  } catch(e){toast('Error: '+e.message,'error');}
+}
+async function verRuta() {
+  if (!selectedId){toast('Selecciona un nodo','error');return;}
+  try {
+    loading('GET /nodes/{nodeId}/path');
+    const path=await api('GET',`/nodes/${selectedId}/path`);
+    const colors=['#E63946','#F4A261','#FFD166','#2EC4B6','#3A86FF'];
+    setResult('GET /nodes/{nodeId}/path',`<div class="rpath">${path.map((n,i)=>`${i>0?'<span class="rsep">›</span>':''}<span class="rtag" style="color:${colors[i%5]};border-color:${colors[i%5]}">${n.value}</span>`).join('')}</div>`);
+    path.forEach((n,i)=>setTimeout(()=>highlight(n.id),i*150));
+  } catch(e){toast('Error: '+e.message,'error');}
+}
+async function verProfundidad() {
+  if (!selectedId){toast('Selecciona un nodo','error');return;}
+  try {
+    loading('GET /nodes/{nodeId}/depth');
+    const d=await api('GET',`/nodes/${selectedId}/depth`);
+    setResult('GET /nodes/{nodeId}/depth',`<div class="rrow"><span class="rkey">Profundidad</span><span class="rnum" style="color:var(--amarillo)">${d}</span></div>`);
+    toast('Profundidad: '+d,'success');
+  } catch(e){toast('Error: '+e.message,'error');}
+}
+async function verAncestros() {
+  if (!selectedId){toast('Selecciona un nodo','error');return;}
+  try {
+    loading('GET /nodes/{nodeId}/ancestors');
+    const anc=await api('GET',`/nodes/${selectedId}/ancestors`);
+    if (!anc.length){setResult('GET /nodes/{nodeId}/ancestors','<span style="color:var(--muted)">Este nodo es la raíz.</span>');return;}
+    setResult('GET /nodes/{nodeId}/ancestors',`<div class="rpath">${anc.map(n=>`<span class="rtag" style="color:var(--morado);border-color:var(--morado)">🧬 ${n.value}</span><span class="rsep">←</span>`).join('')}</div>`);
+  } catch(e){toast('Error: '+e.message,'error');}
+}
+async function verSubarbol() {
+  if (!selectedId){toast('Selecciona un nodo','error');return;}
+  try {
+    loading('GET /tree/{nodeId}');
+    const sub=await api('GET',`/tree/${selectedId}`);
+    const count=cn(sub);
+    setResult('GET /tree/{nodeId}',`<div class="rrow"><span class="rkey">Raíz del subárbol</span><span class="rval">${sub.value}</span></div><div class="rrow"><span class="rkey">Total nodos</span><span class="rnum" style="color:var(--verde)">${count}</span></div>`);
+    hs(sub);
+  } catch(e){toast('Error: '+e.message,'error');}
+}
+function cn(n){return !n?0:1+(n.children||[]).reduce((s,c)=>s+cn(c),0);}
+function hs(n){highlight(n.id);(n.children||[]).forEach(c=>hs(c));}
+async function recorridoDFS() {
+  try { loading('GET /tree/traversal?type=DFS'); const n=await api('GET','/tree/traversal?type=DFS'); showTrav('DFS',n,'#FFD166'); } catch(e){toast('Error: '+e.message,'error');}
+}
+async function recorridoBFS() {
+  try { loading('GET /tree/traversal?type=BFS'); const n=await api('GET','/tree/traversal?type=BFS'); showTrav('BFS',n,'#2EC4B6'); } catch(e){toast('Error: '+e.message,'error');}
+}
+function showTrav(tipo,nodes,color) {
+  setResult(`GET /tree/traversal?type=${tipo}`,`<div style="color:var(--muted);font-family:var(--mono);font-size:0.68rem;margin-bottom:8px">${tipo} — ${nodes.length} nodos</div><div class="rpath">${nodes.map((n,i)=>`<span class="rtag" style="color:${color};border-color:${color}30"><span style="color:var(--muted);font-size:0.6rem">${i+1}.</span> ${n.value}</span>`).join('')}</div>`);
+  nodes.forEach((n,i)=>setTimeout(()=>highlight(n.id),i*180));
+}
+async function verAltura() {
+  try { loading('GET /tree/height'); const h=await api('GET','/tree/height'); setResult('GET /tree/height',`<div class="rrow"><span class="rkey">Altura</span><span class="rnum" style="color:var(--morado)">${h}</span></div>`); toast('Altura: '+h,'success'); } catch(e){toast('Error: '+e.message,'error');}
+}
+async function validarCiclos() {
+  try {
+    loading('GET /tree/validate');
+    const ok=await api('GET','/tree/validate');
+    const v=ok===true||ok==='true';
+    setResult('GET /tree/validate',`<div class="rrow"><span class="rkey">¿Sin ciclos?</span><span class="rval" style="color:${v?'var(--verde)':'var(--rojo)'}">${v?'✓ Válido':'✗ Ciclos detectados'}</span></div>`);
+    toast(v?'Árbol válido ✓':'Ciclos detectados ✗',v?'success':'error');
+  } catch(e){toast('Error: '+e.message,'error');}
+}
+function highlight(id) {
+  const el=document.querySelector(`.tnode[data-id="${id}"]`);
+  if (!el) return;
+  el.classList.add('highlighted'); setTimeout(()=>el.classList.remove('highlighted'),700);
+}
+window.addEventListener('DOMContentLoaded',async()=>{
+  await pingBackend(); await cargarArbol(); setInterval(pingBackend,12000);
+});
+</script>
+</body>
+</html>

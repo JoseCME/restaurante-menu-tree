@@ -11,19 +11,13 @@ import org.springframework.context.annotation.Configuration;
 public class TreeConfig {
 
     @Bean
-    @ConditionalOnProperty(
-        name = "app.tree-strategy",
-        havingValue = "custom"
-    )
+    @ConditionalOnProperty(name = "app.tree-strategy", havingValue = "custom")
     public TreeAlgorithmStrategy customStrategy() {
         return new CustomTreeStrategy();
     }
 
     @Bean
-    @ConditionalOnProperty(
-        name = "app.tree-strategy",
-        havingValue = "collections"
-    )
+    @ConditionalOnProperty(name = "app.tree-strategy", havingValue = "collections")
     public TreeAlgorithmStrategy collectionsStrategy() {
         return new CollectionsTreeStrategy();
     }
