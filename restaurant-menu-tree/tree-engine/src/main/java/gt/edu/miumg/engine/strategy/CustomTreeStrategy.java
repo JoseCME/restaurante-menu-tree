@@ -97,7 +97,7 @@ public class CustomTreeStrategy implements TreeAlgorithmStrategy {
     }
 
     private int calculateHeight(TreeNode node) {
-        if (node.getChildCount() == 0) return 1;
+        if (node.getChildCount() == 0) return 0;
         int maxHeight = 0;
         for (int i = 0; i < node.getChildCount(); i++) {
             int childHeight = calculateHeight(node.getChildren()[i]);
