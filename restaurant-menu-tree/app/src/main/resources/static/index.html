@@ -336,35 +336,12 @@ async function pingBackend() {
 
 async function cargarConfig() {
   try {
-    const res = await fetch(API + '/actuator/env', { signal: AbortSignal.timeout(2000) });
-    if (!res.ok) throw new Error('actuator no disponible');
+    const res = await fetch(API + '/config', { signal: AbortSignal.timeout(2000) });
+    if (!res.ok) throw new Error();
     const data = await res.json();
-    const props = data.propertySources || [];
-    let strategy = null, storage = null;
-    for (const src of props) {
-      const p = src.properties || {};
-      if (!strategy && p['app.tree-strategy']) strategy = p['app.tree-strategy'].value;
-      if (!storage  && p['app.storage'])       storage  = p['app.storage'].value;
-    }
-    if (strategy) document.getElementById('badge-strategy').textContent = 'strategy: ' + strategy;
-    if (storage)  document.getElementById('badge-storage').textContent  = 'storage: '  + storage;
-  } catch {
-    // Fallback: leer desde /actuator/env con include completo
-    try {
-      const res2 = await fetch(API + '/actuator/env/app.tree-strategy', { signal: AbortSignal.timeout(2000) });
-      const res3 = await fetch(API + '/actuator/env/app.storage',       { signal: AbortSignal.timeout(2000) });
-      if (res2.ok) {
-        const d = await res2.json();
-        const val = d.property?.source?.value || d.activeProfiles?.[0] || null;
-        if (val) document.getElementById('badge-strategy').textContent = 'strategy: ' + val;
-      }
-      if (res3.ok) {
-        const d = await res3.json();
-        const val = d.property?.source?.value || null;
-        if (val) document.getElementById('badge-storage').textContent = 'storage: ' + val;
-      }
-    } catch { /* silencioso */ }
-  }
+    if (data.strategy) document.getElementById('badge-strategy').textContent = 'strategy: ' + data.strategy;
+    if (data.storage)  document.getElementById('badge-storage').textContent  = 'storage: '  + data.storage;
+  } catch { /* silencioso */ }
 }
 const DEPTH_CLASS = ['depth-0','depth-1','depth-2','depth-3','depth-4','depth-5','depth-x'];
 function dClass(d) { return DEPTH_CLASS[Math.min(d, DEPTH_CLASS.length-1)]; }
