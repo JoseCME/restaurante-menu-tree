@@ -3,6 +3,8 @@ package gt.edu.miumg.app.service;
 import gt.edu.miumg.app.persistence.TreeRepository;
 import gt.edu.miumg.engine.dto.NodeDTO;
 import gt.edu.miumg.engine.strategy.TreeAlgorithmStrategy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -13,12 +15,19 @@ import java.util.UUID;
 @Service
 public class TreeService {
 
+    private static final Logger log = LoggerFactory.getLogger(TreeService.class);
+
     private final TreeAlgorithmStrategy strategy;
     private final TreeRepository repository;
 
     public TreeService(TreeAlgorithmStrategy strategy, TreeRepository repository) {
         this.strategy = strategy;
         this.repository = repository;
+
+        log.info("========================================");
+        log.info("  Motor activo  : {}", strategy.getClass().getSimpleName());
+        log.info("  Persistencia  : {}", repository.getClass().getSuperclass().getSimpleName());
+        log.info("========================================");
     }
 
     public NodeDTO createRoot(String value) {
