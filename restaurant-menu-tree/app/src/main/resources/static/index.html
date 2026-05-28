@@ -143,8 +143,8 @@ input[type="text"]:focus { border-color: var(--azul); box-shadow: 0 0 0 3px #3A8
 .node-item.active { background: #3A86FF18; color: var(--azul); }
 .node-item .nid { margin-left: auto; font-family: var(--mono); font-size: 0.6rem; color: var(--muted); }
 .empty-list { padding: 12px; text-align: center; font-size: 0.75rem; color: var(--muted); font-family: var(--mono); }
-.main-area { display: grid; grid-template-rows: 1fr 220px; overflow: hidden; }
-#tree-area { overflow: auto; padding: 2rem; position: relative; }
+.main-area { display: flex; flex-direction: column; overflow: hidden; height: calc(100vh - 68px); }
+#tree-area { overflow: auto; padding: 2rem; position: relative; flex: 1; min-height: 0; }
 .empty-tree { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; pointer-events: none; }
 .empty-icon { font-size: 5rem; animation: float 3s ease-in-out infinite; }
 @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
@@ -179,8 +179,24 @@ input[type="text"]:focus { border-color: var(--azul); box-shadow: 0 0 0 3px #3A8
   background: rgba(15,52,96,0.6); border-top: 2px solid var(--border);
   backdrop-filter: blur(8px); overflow: hidden;
   display: flex; flex-direction: column;
+  position: relative;
+  height: 220px;
+  min-height: 60px;
+  flex-shrink: 0;
 }
-.result-topbar { padding: 10px 1.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.result-resize-handle {
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 8px; cursor: ns-resize; z-index: 10;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; transition: background 0.2s;
+}
+.result-resize-handle:hover { background: #3A86FF20; }
+.result-resize-handle::after {
+  content: ''; width: 48px; height: 3px;
+  background: var(--border); border-radius: 3px; transition: background 0.2s;
+}
+.result-resize-handle:hover::after { background: var(--azul); }
+.result-topbar { padding: 10px 1.5rem; margin-top: 4px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 .result-label { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; }
 #result-op { font-family: var(--mono); font-size: 0.72rem; font-weight: 700; color: var(--amarillo); }
 .result-body { padding: 12px 1.5rem; overflow-y: auto; flex: 1; }
@@ -270,6 +286,7 @@ input[type="text"]:focus { border-color: var(--azul); box-shadow: 0 0 0 3px #3A8
       <div class="tree-wrap" id="tree-container"></div>
     </div>
     <div id="result-area">
+      <div class="result-resize-handle" id="resize-handle"></div>
       <div class="result-topbar">
         <span class="result-label">Resultado</span>
         <span id="result-op">— ninguna operación ejecutada</span>
@@ -311,8 +328,42 @@ async function pingBackend() {
   try {
     await fetch(API + '/tree', { signal: AbortSignal.timeout(2500) });
     dot.className = 'ok'; lbl.textContent = 'online'; lbl.style.color = 'var(--verde)';
+    await cargarConfig();
   } catch {
     dot.className = 'error'; lbl.textContent = 'offline'; lbl.style.color = 'var(--rojo)';
+  }
+}
+
+async function cargarConfig() {
+  try {
+    const res = await fetch(API + '/actuator/env', { signal: AbortSignal.timeout(2000) });
+    if (!res.ok) throw new Error('actuator no disponible');
+    const data = await res.json();
+    const props = data.propertySources || [];
+    let strategy = null, storage = null;
+    for (const src of props) {
+      const p = src.properties || {};
+      if (!strategy && p['app.tree-strategy']) strategy = p['app.tree-strategy'].value;
+      if (!storage  && p['app.storage'])       storage  = p['app.storage'].value;
+    }
+    if (strategy) document.getElementById('badge-strategy').textContent = 'strategy: ' + strategy;
+    if (storage)  document.getElementById('badge-storage').textContent  = 'storage: '  + storage;
+  } catch {
+    // Fallback: leer desde /actuator/env con include completo
+    try {
+      const res2 = await fetch(API + '/actuator/env/app.tree-strategy', { signal: AbortSignal.timeout(2000) });
+      const res3 = await fetch(API + '/actuator/env/app.storage',       { signal: AbortSignal.timeout(2000) });
+      if (res2.ok) {
+        const d = await res2.json();
+        const val = d.property?.source?.value || d.activeProfiles?.[0] || null;
+        if (val) document.getElementById('badge-strategy').textContent = 'strategy: ' + val;
+      }
+      if (res3.ok) {
+        const d = await res3.json();
+        const val = d.property?.source?.value || null;
+        if (val) document.getElementById('badge-storage').textContent = 'storage: ' + val;
+      }
+    } catch { /* silencioso */ }
   }
 }
 const DEPTH_CLASS = ['depth-0','depth-1','depth-2','depth-3','depth-4','depth-5','depth-x'];
@@ -445,9 +496,84 @@ async function recorridoDFS() {
 async function recorridoBFS() {
   try { loading('GET /tree/traversal?type=BFS'); const n=await api('GET','/tree/traversal?type=BFS'); showTrav('BFS',n,'#2EC4B6'); } catch(e){toast('Error: '+e.message,'error');}
 }
-function showTrav(tipo,nodes,color) {
-  setResult(`GET /tree/traversal?type=${tipo}`,`<div style="color:var(--muted);font-family:var(--mono);font-size:0.68rem;margin-bottom:8px">${tipo} — ${nodes.length} nodos</div><div class="rpath">${nodes.map((n,i)=>`<span class="rtag" style="color:${color};border-color:${color}30"><span style="color:var(--muted);font-size:0.6rem">${i+1}.</span> ${n.value}</span>`).join('')}</div>`);
-  nodes.forEach((n,i)=>setTimeout(()=>highlight(n.id),i*180));
+function showTrav(tipo, nodes, color) {
+  // Construir mapa de profundidad desde allNodes
+  // Para BFS agrupamos por nivel, para DFS mostramos el orden con indentación
+  if (tipo === 'BFS') {
+    // Agrupar nodos por profundidad (nivel)
+    const levels = {};
+    nodes.forEach(n => {
+      const depth = getDepth(n.id);
+      if (!levels[depth]) levels[depth] = [];
+      levels[depth].push(n);
+    });
+    const maxLevel = Math.max(...Object.keys(levels).map(Number));
+    let html = `
+      <div style="color:var(--muted);font-family:var(--mono);font-size:0.68rem;margin-bottom:12px">
+        BFS — recorrido por niveles — ${nodes.length} nodos
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+    `;
+    const levelColors = ['#E63946','#F4A261','#FFD166','#2EC4B6','#3A86FF','#8338EC','#FF006E'];
+    for (let i = 0; i <= maxLevel; i++) {
+      if (!levels[i]) continue;
+      const c = levelColors[i % levelColors.length];
+      html += `
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-family:var(--mono);font-size:0.65rem;color:${c};border:1.5px solid ${c};border-radius:6px;padding:3px 8px;white-space:nowrap;font-weight:700">
+            Layer ${i}
+          </span>
+          <span style="color:var(--muted);font-size:0.8rem">→</span>
+          ${levels[i].map(n => `
+            <span class="rtag" style="color:${c};border-color:${c};background:${c}15">
+              ${n.value}
+            </span>
+          `).join(`<span style="color:var(--muted);font-size:0.75rem;margin:0 2px">→</span>`)}
+        </div>
+      `;
+    }
+    html += '</div>';
+    setResult('GET /tree/traversal?type=BFS', html);
+  } else {
+    // DFS — mostrar orden con indentación por profundidad
+    let html = `
+      <div style="color:var(--muted);font-family:var(--mono);font-size:0.68rem;margin-bottom:12px">
+        DFS — recorrido en profundidad — ${nodes.length} nodos
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+    `;
+    const depthColors = ['#E63946','#F4A261','#FFD166','#2EC4B6','#3A86FF','#8338EC','#FF006E'];
+    nodes.forEach((n, i) => {
+      const depth = getDepth(n.id);
+      const c = depthColors[Math.min(depth, depthColors.length-1)];
+      const indent = depth * 24;
+      html += `
+        <div style="display:flex;align-items:center;gap:8px;margin-left:${indent}px;animation:nodeIn 0.3s ease both;animation-delay:${i*0.04}s">
+          <span style="font-family:var(--mono);font-size:0.6rem;color:var(--muted);width:18px;text-align:right">${i+1}.</span>
+          ${depth > 0 ? `<span style="color:${c};font-size:0.75rem">${'└─'.repeat(1)}</span>` : ''}
+          <span class="rtag" style="color:${c};border-color:${c};background:${c}15">
+            ${n.value}
+          </span>
+          <span style="font-family:var(--mono);font-size:0.6rem;color:var(--muted)">d:${depth}</span>
+        </div>
+      `;
+    });
+    html += '</div>';
+    setResult('GET /tree/traversal?type=DFS', html);
+  }
+  // Animar nodos en el árbol
+  nodes.forEach((n,i) => setTimeout(() => highlight(n.id), i*180));
+}
+
+// Obtener profundidad de un nodo desde allNodes
+function getDepth(id) {
+  let depth = 0;
+  let current = allNodes[id];
+  while (current && current.parentId) {
+    depth++;
+    current = allNodes[current.parentId];
+  }
+  return depth;
 }
 async function verAltura() {
   try { loading('GET /tree/height'); const h=await api('GET','/tree/height'); setResult('GET /tree/height',`<div class="rrow"><span class="rkey">Altura</span><span class="rnum" style="color:var(--morado)">${h}</span></div>`); toast('Altura: '+h,'success'); } catch(e){toast('Error: '+e.message,'error');}
@@ -466,8 +592,40 @@ function highlight(id) {
   if (!el) return;
   el.classList.add('highlighted'); setTimeout(()=>el.classList.remove('highlighted'),700);
 }
-window.addEventListener('DOMContentLoaded',async()=>{
+
+window.addEventListener('DOMContentLoaded', async () => {
   await pingBackend(); await cargarArbol(); setInterval(pingBackend,12000);
+
+  // ── RESIZE DEL PANEL DE RESULTADO ──
+  const handle = document.getElementById('resize-handle');
+  const panel  = document.getElementById('result-area');
+  if (!handle || !panel) return;
+
+  let isDragging = false, startY = 0, startHeight = 0;
+
+  handle.addEventListener('mousedown', (e) => {
+    isDragging  = true;
+    startY      = e.clientY;
+    startHeight = panel.getBoundingClientRect().height;
+    document.body.style.cursor     = 'ns-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const delta     = startY - e.clientY;
+    const newHeight = Math.max(60, Math.min(window.innerHeight * 0.8, startHeight + delta));
+    panel.style.height    = newHeight + 'px';
+    panel.style.maxHeight = newHeight + 'px';
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!isDragging) return;
+    isDragging = false;
+    document.body.style.cursor     = '';
+    document.body.style.userSelect = '';
+  });
 });
 </script>
 </body>
