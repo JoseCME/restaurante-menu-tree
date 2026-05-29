@@ -283,6 +283,7 @@ input[type="text"]:focus { border-color: var(--azul); box-shadow: 0 0 0 3px #3A8
         <div class="empty-text">El árbol está vacío</div>
         <div class="empty-sub">Crea la raíz para comenzar</div>
       </div>
+      <svg id="traversal-overlay" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:10"></svg>
       <div class="tree-wrap" id="tree-container"></div>
     </div>
     <div id="result-area">
@@ -474,83 +475,363 @@ async function recorridoBFS() {
   try { loading('GET /tree/traversal?type=BFS'); const n=await api('GET','/tree/traversal?type=BFS'); showTrav('BFS',n,'#2EC4B6'); } catch(e){toast('Error: '+e.message,'error');}
 }
 function showTrav(tipo, nodes, color) {
-  // Construir mapa de profundidad desde allNodes
-  // Para BFS agrupamos por nivel, para DFS mostramos el orden con indentación
-  if (tipo === 'BFS') {
-    // Agrupar nodos por profundidad (nivel)
-    const levels = {};
-    nodes.forEach(n => {
-      const depth = getDepth(n.id);
-      if (!levels[depth]) levels[depth] = [];
-      levels[depth].push(n);
-    });
-    const maxLevel = Math.max(...Object.keys(levels).map(Number));
-    let html = `
-      <div style="color:var(--muted);font-family:var(--mono);font-size:0.68rem;margin-bottom:12px">
-        BFS — recorrido por niveles — ${nodes.length} nodos
-      </div>
-      <div style="display:flex;flex-direction:column;gap:10px">
-    `;
-    const levelColors = ['#E63946','#F4A261','#FFD166','#2EC4B6','#3A86FF','#8338EC','#FF006E'];
-    for (let i = 0; i <= maxLevel; i++) {
-      if (!levels[i]) continue;
-      const c = levelColors[i % levelColors.length];
-      html += `
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span style="font-family:var(--mono);font-size:0.65rem;color:${c};border:1.5px solid ${c};border-radius:6px;padding:3px 8px;white-space:nowrap;font-weight:700">
-            Layer ${i}
-          </span>
-          <span style="color:var(--muted);font-size:0.8rem">→</span>
-          ${levels[i].map(n => `
-            <span class="rtag" style="color:${c};border-color:${c};background:${c}15">
-              ${n.value}
-            </span>
-          `).join(`<span style="color:var(--muted);font-size:0.75rem;margin:0 2px">→</span>`)}
-        </div>
-      `;
-    }
-    html += '</div>';
-    setResult('GET /tree/traversal?type=BFS', html);
-  } else {
-    // DFS — mostrar orden con indentación por profundidad
-    let html = `
-      <div style="color:var(--muted);font-family:var(--mono);font-size:0.68rem;margin-bottom:12px">
-        DFS — recorrido en profundidad — ${nodes.length} nodos
-      </div>
-      <div style="display:flex;flex-direction:column;gap:6px">
-    `;
-    const depthColors = ['#E63946','#F4A261','#FFD166','#2EC4B6','#3A86FF','#8338EC','#FF006E'];
-    nodes.forEach((n, i) => {
-      const depth = getDepth(n.id);
-      const c = depthColors[Math.min(depth, depthColors.length-1)];
-      const indent = depth * 24;
-      html += `
-        <div style="display:flex;align-items:center;gap:8px;margin-left:${indent}px;animation:nodeIn 0.3s ease both;animation-delay:${i*0.04}s">
-          <span style="font-family:var(--mono);font-size:0.6rem;color:var(--muted);width:18px;text-align:right">${i+1}.</span>
-          ${depth > 0 ? `<span style="color:${c};font-size:0.75rem">${'└─'.repeat(1)}</span>` : ''}
-          <span class="rtag" style="color:${c};border-color:${c};background:${c}15">
-            ${n.value}
-          </span>
-          <span style="font-family:var(--mono);font-size:0.6rem;color:var(--muted)">d:${depth}</span>
-        </div>
-      `;
-    });
-    html += '</div>';
-    setResult('GET /tree/traversal?type=DFS', html);
-  }
-  // Animar nodos en el árbol
-  nodes.forEach((n,i) => setTimeout(() => highlight(n.id), i*180));
+  // Mostrar info mínima en el panel resultado
+  setResult(
+    `GET /tree/traversal?type=${tipo}`,
+    `<div style="display:flex;align-items:center;gap:12px;font-family:var(--mono);font-size:0.75rem">
+      <span style="color:var(--muted)">${tipo} — ${nodes.length} nodos visitados</span>
+      <span style="color:#E63946;font-weight:700">● recorrido pintado sobre el árbol</span>
+      <button onclick="limpiarOverlay()" style="background:#1E2A4A;border:1px solid var(--border);color:var(--muted);padding:3px 10px;border-radius:6px;cursor:pointer;font-family:var(--mono);font-size:0.68rem">✕ Limpiar</button>
+    </div>
+    <div style="margin-top:8px;font-family:var(--mono);font-size:0.7rem;color:var(--muted)">
+      Orden: ${nodes.map(n=>`<span style="color:var(--text)">${n.value}</span>`).join(' → ')}
+    </div>`
+  );
+
+  // Resaltar nodos en el árbol uno por uno
+  nodes.forEach((n,i) => setTimeout(() => highlight(n.id), i * 300));
+
+  // Dibujar overlay SVG sobre el árbol después de que los nodos estén resaltados
+  setTimeout(() => drawOverlay(nodes), 100);
 }
 
-// Obtener profundidad de un nodo desde allNodes
-function getDepth(id) {
-  let depth = 0;
-  let current = allNodes[id];
-  while (current && current.parentId) {
-    depth++;
-    current = allNodes[current.parentId];
+function limpiarOverlay() {
+  const svg = document.getElementById('traversal-overlay');
+  if (svg) svg.innerHTML = '';
+  document.querySelectorAll('.tnode').forEach(n => n.classList.remove('highlighted','selected'));
+}
+
+function drawOverlay(nodes) {
+  const svg     = document.getElementById('traversal-overlay');
+  const treeArea = document.getElementById('tree-area');
+  if (!svg || !treeArea || nodes.length < 2) return;
+
+  svg.innerHTML = '';
+
+  // Definir marcador de flecha roja
+  svg.innerHTML = `<defs>
+    <marker id="ov-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#E63946"/>
+    </marker>
+  </defs>`;
+
+  const areaRect = treeArea.getBoundingClientRect();
+
+  // Obtener centros de cada nodo en coordenadas relativas al tree-area
+  const centers = nodes.map(n => {
+    const el = document.querySelector(`.tnode[data-id="${n.id}"]`);
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return {
+      x: r.left - areaRect.left + treeArea.scrollLeft + r.width / 2,
+      y: r.top  - areaRect.top  + treeArea.scrollTop  + r.height / 2,
+      id: n.id
+    };
+  }).filter(Boolean);
+
+  if (centers.length < 2) return;
+
+  // Dibujar segmentos uno a uno con animación
+  centers.forEach((pt, i) => {
+    if (i === 0) return;
+    const prev = centers[i - 1];
+    const delay = i * 300;
+
+    setTimeout(() => {
+      // Calcular punto de inicio y fin ajustado para no solaparse con el nodo
+      const dx = pt.x - prev.x;
+      const dy = pt.y - prev.y;
+      const len = Math.sqrt(dx*dx + dy*dy);
+      if (len === 0) return;
+      const ux = dx/len, uy = dy/len;
+      const nodeRadius = 22;
+      const arrowGap   = 28;
+
+      const x1 = prev.x + ux * nodeRadius;
+      const y1 = prev.y + uy * nodeRadius;
+      const x2 = pt.x   - ux * arrowGap;
+      const y2 = pt.y   - uy * arrowGap;
+
+      // Crear línea animada
+      const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+      line.setAttribute('x1', x1.toFixed(1));
+      line.setAttribute('y1', y1.toFixed(1));
+      line.setAttribute('x2', x2.toFixed(1));
+      line.setAttribute('y2', y2.toFixed(1));
+      line.setAttribute('stroke', '#E63946');
+      line.setAttribute('stroke-width', '2.5');
+      line.setAttribute('stroke-dasharray', '7,4');
+      line.setAttribute('marker-end', 'url(#ov-arrow)');
+      line.setAttribute('opacity', '0');
+      line.style.transition = 'opacity 0.3s ease';
+      svg.appendChild(line);
+
+      // Fade in
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => { line.setAttribute('opacity','1'); });
+      });
+
+      // Resaltar nodo destino
+      const elDest = document.querySelector(`.tnode[data-id="${centers[i].id}"]`);
+      if (elDest) {
+        elDest.classList.add('highlighted');
+        setTimeout(() => elDest.classList.remove('highlighted'), 600);
+      }
+    }, delay);
+  });
+
+  // Resaltar nodo inicial
+  const elFirst = document.querySelector(`.tnode[data-id="${centers[0].id}"]`);
+  if (elFirst) {
+    elFirst.classList.add('highlighted');
+    setTimeout(() => elFirst.classList.remove('highlighted'), 600);
   }
+}
+
+function getDepth(id) {
+  let depth=0,current=allNodes[id];
+  while(current&&current.parentId){depth++;current=allNodes[current.parentId];}
   return depth;
+}
+
+
+async function recorridoDFS() {
+  try { loading('GET /tree/traversal?type=DFS'); const n=await api('GET','/tree/traversal?type=DFS'); showTrav('DFS',n,'#FFD166'); } catch(e){toast('Error: '+e.message,'error');}
+}
+async function recorridoBFS() {
+  try { loading('GET /tree/traversal?type=BFS'); const n=await api('GET','/tree/traversal?type=BFS'); showTrav('BFS',n,'#2EC4B6'); } catch(e){toast('Error: '+e.message,'error');}
+}
+function showTrav(tipo, nodes, color) {
+  // Mostrar info mínima en el panel resultado
+  setResult(
+    `GET /tree/traversal?type=${tipo}`,
+    `<div style="display:flex;align-items:center;gap:12px;font-family:var(--mono);font-size:0.75rem">
+      <span style="color:var(--muted)">${tipo} — ${nodes.length} nodos visitados</span>
+      <span style="color:#E63946;font-weight:700">● recorrido pintado sobre el árbol</span>
+      <button onclick="limpiarOverlay()" style="background:#1E2A4A;border:1px solid var(--border);color:var(--muted);padding:3px 10px;border-radius:6px;cursor:pointer;font-family:var(--mono);font-size:0.68rem">✕ Limpiar</button>
+    </div>
+    <div style="margin-top:8px;font-family:var(--mono);font-size:0.7rem;color:var(--muted)">
+      Orden: ${nodes.map(n=>`<span style="color:var(--text)">${n.value}</span>`).join(' → ')}
+    </div>`
+  );
+
+  // Resaltar nodos en el árbol uno por uno
+  nodes.forEach((n,i) => setTimeout(() => highlight(n.id), i * 300));
+
+  // Dibujar overlay SVG sobre el árbol después de que los nodos estén resaltados
+  setTimeout(() => drawOverlay(nodes), 100);
+}
+
+function limpiarOverlay() {
+  const svg = document.getElementById('traversal-overlay');
+  if (svg) svg.innerHTML = '';
+  document.querySelectorAll('.tnode').forEach(n => n.classList.remove('highlighted','selected'));
+}
+
+function drawOverlay(nodes) {
+  const svg     = document.getElementById('traversal-overlay');
+  const treeArea = document.getElementById('tree-area');
+  if (!svg || !treeArea || nodes.length < 2) return;
+
+  svg.innerHTML = '';
+
+  // Definir marcador de flecha roja
+  svg.innerHTML = `<defs>
+    <marker id="ov-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#E63946"/>
+    </marker>
+  </defs>`;
+
+  const areaRect = treeArea.getBoundingClientRect();
+
+  // Obtener centros de cada nodo en coordenadas relativas al tree-area
+  const centers = nodes.map(n => {
+    const el = document.querySelector(`.tnode[data-id="${n.id}"]`);
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    return {
+      x: r.left - areaRect.left + treeArea.scrollLeft + r.width / 2,
+      y: r.top  - areaRect.top  + treeArea.scrollTop  + r.height / 2,
+      id: n.id
+    };
+  }).filter(Boolean);
+
+  if (centers.length < 2) return;
+
+  // Dibujar segmentos uno a uno con animación
+  centers.forEach((pt, i) => {
+    if (i === 0) return;
+    const prev = centers[i - 1];
+    const delay = i * 300;
+
+    setTimeout(() => {
+      // Calcular punto de inicio y fin ajustado para no solaparse con el nodo
+      const dx = pt.x - prev.x;
+      const dy = pt.y - prev.y;
+      const len = Math.sqrt(dx*dx + dy*dy);
+      if (len === 0) return;
+      const ux = dx/len, uy = dy/len;
+      const nodeRadius = 22;
+      const arrowGap   = 28;
+
+      const x1 = prev.x + ux * nodeRadius;
+      const y1 = prev.y + uy * nodeRadius;
+      const x2 = pt.x   - ux * arrowGap;
+      const y2 = pt.y   - uy * arrowGap;
+
+      // Crear línea animada
+      const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+      line.setAttribute('x1', x1.toFixed(1));
+      line.setAttribute('y1', y1.toFixed(1));
+      line.setAttribute('x2', x2.toFixed(1));
+      line.setAttribute('y2', y2.toFixed(1));
+      line.setAttribute('stroke', '#E63946');
+      line.setAttribute('stroke-width', '2.5');
+      line.setAttribute('stroke-dasharray', '7,4');
+      line.setAttribute('marker-end', 'url(#ov-arrow)');
+      line.setAttribute('opacity', '0');
+      line.style.transition = 'opacity 0.3s ease';
+      svg.appendChild(line);
+
+      // Fade in
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => { line.setAttribute('opacity','1'); });
+      });
+
+      // Resaltar nodo destino
+      const elDest = document.querySelector(`.tnode[data-id="${centers[i].id}"]`);
+      if (elDest) {
+        elDest.classList.add('highlighted');
+        setTimeout(() => elDest.classList.remove('highlighted'), 600);
+      }
+    }, delay);
+  });
+
+  // Resaltar nodo inicial
+  const elFirst = document.querySelector(`.tnode[data-id="${centers[0].id}"]`);
+  if (elFirst) {
+    elFirst.classList.add('highlighted');
+    setTimeout(() => elFirst.classList.remove('highlighted'), 600);
+  }
+}
+
+function getDepth(id) {
+  let depth=0,current=allNodes[id];
+  while(current&&current.parentId){depth++;current=allNodes[current.parentId];}
+  return depth;
+}
+
+// ══════════════════════════════════════════════════════
+// GRAFO VISUAL SVG — BFS y DFS hardcoded
+// ══════════════════════════════════════════════════════
+function buildGraphViz(tipo) {
+  // Posiciones de nodos en el grafo (layout por niveles)
+  // Nivel 0: a
+  // Nivel 1: b c d
+  // Nivel 2: e f g h i
+  // Nivel 3: j k l m n
+  const W = 340, H = 280, R = 18;
+  const pos = {
+    a: [170, 28],
+    b: [70,  88],  c: [170, 88],  d: [270, 88],
+    e: [35, 158],  f: [110,158],  g: [185,158],  h: [245,158],  i: [305,158],
+    j: [35, 228],  k: [90, 228],  l: [145,228],  m: [275,228],  n: [315,228]
+  };
+
+  // Aristas del grafo
+  const edges = [
+    ['a','b'],['a','c'],['a','d'],
+    ['b','e'],['b','f'],
+    ['c','f'],['c','g'],
+    ['d','g'],['d','h'],['d','i'],
+    ['e','j'],
+    ['f','k'],['f','l'],['f','h'],
+    ['i','m'],['i','n']
+  ];
+
+  // Orden de recorrido
+  const BFS_ORDER = ['a','b','c','d','e','f','g','h','i','j','k','l','m','n'];
+  const DFS_ORDER = ['a','b','e','j','f','k','l','h','c','g','d','i','m','n'];
+  const order = tipo === 'BFS' ? BFS_ORDER : DFS_ORDER;
+
+  // Aristas recorridas en ese orden
+  const traversedEdges = [];
+  for(let i=1;i<order.length;i++) traversedEdges.push([order[i-1], order[i]]);
+
+  function arrowId(from,to){ return `arr-${tipo}-${from}-${to}`; }
+
+  // Construir SVG
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:${W}px;background:#0f1117;border-radius:12px;border:1.5px solid #2A3F6F">`;
+
+  // Definir marcadores de flechas
+  svg += `<defs>
+    <marker id="arr-normal-${tipo}" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#3A4F80"/>
+    </marker>
+    <marker id="arr-active-${tipo}" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#E63946"/>
+    </marker>
+  </defs>`;
+
+  // Dibujar aristas normales
+  edges.forEach(([f,t]) => {
+    const [x1,y1]=pos[f], [x2,y2]=pos[t];
+    const dx=x2-x1, dy=y2-y1, len=Math.sqrt(dx*dx+dy*dy);
+    const ux=dx/len, uy=dy/len;
+    const sx=x1+ux*R, sy=y1+uy*R;
+    const ex=x2-ux*(R+6), ey=y2-uy*(R+6);
+    svg += `<line x1="${sx.toFixed(1)}" y1="${sy.toFixed(1)}" x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}" stroke="#2A3F6F" stroke-width="1.5" marker-end="url(#arr-normal-${tipo})" id="edge-${tipo}-${f}-${t}"/>`;
+  });
+
+  // Dibujar aristas del recorrido (animadas, rojas punteadas)
+  traversedEdges.forEach(([f,t],idx) => {
+    const [x1,y1]=pos[f],[x2,y2]=pos[t];
+    const dx=x2-x1,dy=y2-y1,len=Math.sqrt(dx*dx+dy*dy);
+    const ux=dx/len,uy=dy/len;
+    const sx=x1+ux*R,sy=y1+uy*R;
+    const ex=x2-ux*(R+6),ey=y2-uy*(R+6);
+    const delay=(idx*0.35).toFixed(2);
+    svg += `<line x1="${sx.toFixed(1)}" y1="${sy.toFixed(1)}" x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}"
+      stroke="#E63946" stroke-width="2" stroke-dasharray="5,3"
+      marker-end="url(#arr-active-${tipo})"
+      opacity="0"
+      style="animation: edgeFadeIn 0.4s ease ${delay}s forwards"/>`;
+  });
+
+  // Dibujar nodos
+  Object.entries(pos).forEach(([label,[cx,cy]]) => {
+    const idx = order.indexOf(label);
+    const delay = idx >= 0 ? (idx * 0.35).toFixed(2) : '0';
+    svg += `
+      <circle cx="${cx}" cy="${cy}" r="${R}" fill="#1E3A5F" stroke="#2EC4B6" stroke-width="2"
+        id="node-${tipo}-${label}"
+        style="animation: nodePop ${idx>=0?'0.4s':'0s'} ease ${delay}s both"/>
+      <text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central"
+        fill="#F0EAD6" font-family="Space Mono,monospace" font-size="11" font-weight="700"
+        style="animation: nodePop ${idx>=0?'0.4s':'0s'} ease ${delay}s both">
+        ${label}
+      </text>`;
+  });
+
+  // Título
+  svg += `<text x="${W/2}" y="${H-6}" text-anchor="middle" fill="#3A4F80" font-family="Space Mono,monospace" font-size="9" letter-spacing="2">${tipo} TRAVERSAL</text>`;
+
+  svg += `</svg>`;
+
+  // CSS de animaciones (se inyecta una sola vez)
+  const style = `<style>
+    @keyframes nodePop {
+      0%   { opacity:0; transform:scale(0.4); }
+      70%  { transform:scale(1.15); }
+      100% { opacity:1; transform:scale(1); }
+    }
+    @keyframes edgeFadeIn {
+      from { opacity:0; }
+      to   { opacity:1; }
+    }
+  </style>`;
+
+  return `${style}<div style="margin-bottom:10px">${svg}</div>`;
 }
 async function verAltura() {
   try { loading('GET /tree/height'); const h=await api('GET','/tree/height'); setResult('GET /tree/height',`<div class="rrow"><span class="rkey">Altura</span><span class="rnum" style="color:var(--morado)">${h}</span></div>`); toast('Altura: '+h,'success'); } catch(e){toast('Error: '+e.message,'error');}
