@@ -1,128 +1,186 @@
-# \# Restaurant Menu Tree API
+# Restaurant Menu Tree API
 
-# 
+Backend en Spring Boot que gestiona un menú de restaurante
+como árbol jerárquico con dos motores intercambiables
+y tres persistencias, todo configurable sin recompilar.
 
-# Backend en Spring Boot que gestiona un menú de restaurante
+---
 
-# como árbol jerárquico con dos motores intercambiables
+## Prerrequisitos
 
-# y tres persistencias, todo configurable sin recompilar.
+- Java 17
+- Maven 3.8+
+- MongoDB 7 (instalado localmente)
+- PostgreSQL 15 (instalado localmente)
 
-# 
+---
 
-# \---
+## Clonar el repositorio
 
-# 
+```bash
+git clone https://github.com/JoseCME/restaurante-menu-tree.git
+cd restaurante-menu-tree
+```
 
-# \## Prerrequisitos
+---
 
-# 
+## Instalar módulo tree-engine
 
-# \- Java 17
+```bash
+cd restaurant-menu-tree/tree-engine
+mvn install -DskipTests
+cd ..
+```
 
-# \- Maven 3.8+
+---
 
-# \- Docker Desktop
+## Configurar la combinación deseada
 
-# 
+Edita `restaurant-menu-tree/app/src/main/resources/application.properties`:
 
-# \---
+```properties
+app.tree-strategy=custom       # custom | collections
+app.storage=memory             # memory | postgres | mongo
+```
 
-# 
+### Combinaciones disponibles
 
-# \## Clonar el repositorio
+| tree-strategy | storage  | Requiere BD externa |
+|---------------|----------|---------------------|
+| custom        | memory   | No                  |
+| custom        | postgres | Sí (PostgreSQL)     |
+| custom        | mongo    | Sí (MongoDB)        |
+| collections   | memory   | No                  |
+| collections   | postgres | Sí (PostgreSQL)     |
+| collections   | mongo    | Sí (MongoDB)        |
 
-# 
+---
 
-# git clone https://github.com/JoseCME/restaurante-menu-tree.git
+## Arrancar el proyecto
 
-# cd restaurante-menu-tree
+Desde Eclipse:
+```
+Run As → Spring Boot App en AppApplication.java
+```
 
-# 
+O desde terminal:
+```bash
+cd restaurant-menu-tree/app
+mvn spring-boot:run
+```
 
-# \---
+---
 
-# 
+## Swagger UI
 
-# \## Instalar módulo tree-engine
+```
+http://localhost:8080/swagger-ui.html
+```
 
-# 
+---
 
-# cd restaurant-menu-tree/tree-engine
+## Frontend
 
-# mvn install
+```
+http://localhost:8080/index.html
+```
 
-# cd ..
+---
 
-# 
+## Persistencia MongoDB
 
-# \---
+### ¿Cómo funciona?
 
-# 
+MongoDB almacena cada nodo del árbol como un documento independiente
+en la colección `nodes`. La jerarquía se representa con el campo `parentId`.
 
-# \## Arrancar el proyecto
+Ejemplo de documentos en MongoDB:
 
-# 
+```json
+{ "_id": "uuid-1", "value": "Menú Principal", "parentId": null     }
+{ "_id": "uuid-2", "value": "Bebidas",        "parentId": "uuid-1" }
+{ "_id": "uuid-3", "value": "Calientes",      "parentId": "uuid-2" }
+{ "_id": "uuid-4", "value": "Café",           "parentId": "uuid-3" }
+```
 
-# Edita application.properties con la combinación deseada:
+### Clases involucradas
 
-# 
+| Clase                  | Responsabilidad                                      |
+|------------------------|------------------------------------------------------|
+| `NodeDocument.java`    | Entidad MongoDB — mapea un nodo a la colección nodes |
+| `MongoNodeRepository`  | Interfaz Spring Data — queries automáticas a MongoDB |
+| `MongoTreeRepository`  | Implementa TreeRepository traduciendo NodeDTO ↔ NodeDocument |
 
-# app.tree-strategy=custom
+### Activar persistencia MongoDB
 
-# app.storage=memory
+En `application.properties`:
 
-# 
+```properties
+app.storage=mongo
+```
 
-# Luego desde Eclipse:
+En `application-mongo.properties`:
 
-# Run As → Spring Boot App
+```properties
+spring.data.mongodb.uri=mongodb://localhost:27017/menudb
+spring.data.mongodb.database=menudb
+```
 
-# 
+### Selector condicional
 
-# \---
+`MongoTreeRepository` se activa automáticamente con:
 
-# 
+```java
+@ConditionalOnProperty(name = "app.storage", havingValue = "mongo")
+```
 
-# \## Swagger
+Si `app.storage` tiene otro valor, Spring ignora este bean y usa
+`MemoryTreeRepository` o `PostgresTreeRepository` según corresponda.
 
-# 
+### Verificar datos en MongoDB
 
-# http://localhost:8082/swagger-ui.html
+Abre MongoDB Compass o desde la terminal:
 
-# 
+```bash
+mongosh
+use menudb
+db.nodes.find().pretty()
+```
 
-# \---
+---
 
-# 
+## Troubleshooting
 
-# \## Equipo
+**Puerto 8080 en uso:**
+```bash
+netstat -ano | findstr :8080
+taskkill /PID <numero> /F
+```
 
-# 
+**MongoDB no conecta:**
+Verifica que el servicio de MongoDB esté corriendo en Windows:
+```
+Servicios → MongoDB Server → Iniciar
+```
 
-# | Integrante | Rol |
+**PostgreSQL no conecta:**
+Verifica que el servicio de PostgreSQL esté corriendo en Windows:
+```
+Servicios → postgresql-x64-15 → Iniciar
+```
 
-# |------------|-----|
+**tree-engine no encontrado:**
+```bash
+cd restaurant-menu-tree/tree-engine
+mvn install -DskipTests
+```
 
-# | A (Jose) | Custom + Memoria + OpenAPI |
+---
 
-# | B (Kevin) | Collections + PostgreSQL |
+## Equipo
 
-# | C (Carlo) | Beans + MongoDB |
-
-# 
-
-# \---
-
-# 
-
-# \## Pendiente de documentar
-
-# 
-
-# \- Persona A: validación custom completa
-
-# \- Persona B: instrucciones PostgreSQL + Collections
-
-# \- Persona C: instrucciones MongoDB + selectores
-
+| Integrante | Rol                                      |
+|------------|------------------------------------------|
+| A (Jose)   | Custom + Memoria + OpenAPI               |
+| B (Kevin)  | Collections + PostgreSQL                 |
+| C (Carlo)  | MongoDB + Beans condicionales + Frontend |
